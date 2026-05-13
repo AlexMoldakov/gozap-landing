@@ -203,20 +203,31 @@
 
       setStatus(`Пробуем открыть приложение… Если не откроется — нажми «Скачать».`, 'ok');
 
-      let didHide = false;
-      const onVisibility = () => {
-        if (document.visibilityState === 'hidden') {
-          didHide = true;
-          log('page hidden — app likely opened');
-        }
+      let appLikelyOpened = false;
+      const markAppOpened = (reason) => {
+        if (appLikelyOpened) return;
+        appLikelyOpened = true;
+        log('app open signal detected — cancel store redirect', { reason });
       };
+
+      const onVisibility = () => {
+        if (document.visibilityState === 'hidden') markAppOpened('visibility');
+      };
+      const onBlur = () => markAppOpened('blur');
+      const onPageHide = () => markAppOpened('pagehide');
+
       document.addEventListener('visibilitychange', onVisibility);
+      window.addEventListener('blur', onBlur);
+      window.addEventListener('pagehide', onPageHide);
 
       setTimeout(() => openInApp(parsed.stationCode), 300);
 
       setTimeout(() => {
         document.removeEventListener('visibilitychange', onVisibility);
-        if (didHide) {
+        window.removeEventListener('blur', onBlur);
+        window.removeEventListener('pagehide', onPageHide);
+
+        if (appLikelyOpened) {
           log('not redirecting to store — app opened');
           return;
         }
