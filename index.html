@@ -113,21 +113,56 @@
       }
     }
 
+    function parseOsVersion(ua) {
+      const iosMatch = ua.match(/OS (\d+[_.]\d+(?:[_.]\d+)?)\s/i);
+      if (iosMatch) return iosMatch[1].replace(/_/g, '.');
+      const androidMatch = ua.match(/Android\s(\d+(?:\.\d+){0,2})/i);
+      if (androidMatch) return androidMatch[1];
+      return null;
+    }
+
+    function detectRegion(language) {
+      try {
+        return new Intl.Locale(language).maximize().region || null;
+      } catch (_) {
+        const parts = (language || '').split('-');
+        return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : null;
+      }
+    }
+
+    function detectColorScheme() {
+      try {
+        return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch (_) {
+        return null;
+      }
+    }
+
     async function collectFingerprint(stationCode) {
       const platform = detectPlatform();
       const ip = await fetchIp();
+      const dpr = window.devicePixelRatio || 1;
+      const language = navigator.language || null;
       return {
         stationCode,
         platform,
+        osVersion: parseOsVersion(navigator.userAgent),
         userAgent: navigator.userAgent,
-        language: navigator.language,
+        language,
+        languagePrimary: language ? language.split('-')[0] : null,
         languages: navigator.languages || [],
+        region: detectRegion(language),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timezoneOffset: new Date().getTimezoneOffset(),
+        timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+        colorScheme: detectColorScheme(),
+        memoryGb: typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null,
+        cpuCount: typeof navigator.hardwareConcurrency === 'number' ? navigator.hardwareConcurrency : null,
         screen: {
           width: screen.width,
           height: screen.height,
-          dpr: window.devicePixelRatio || 1,
+          scale: dpr,
+          physicalWidth: Math.round(screen.width * dpr),
+          physicalHeight: Math.round(screen.height * dpr),
         },
         viewport: {
           width: window.innerWidth,
